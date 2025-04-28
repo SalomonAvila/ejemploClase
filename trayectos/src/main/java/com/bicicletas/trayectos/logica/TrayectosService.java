@@ -1,9 +1,12 @@
 package com.bicicletas.trayectos.logica;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 
 import com.bicicletas.trayectos.dataAccess.TrayectosRepository;
@@ -65,6 +68,9 @@ public class TrayectosService {
     }
 
     // CU002 Agregar ubicación al Trayecto
+    //1. Ingresa el id del trayecto en curso
+    //4. Ingresa la longuitud y la latitud de la ubicacion actual
+    @Transactional(value = TxType.REQUIRED)
     public UUID agregarUbicacionAlTrayecto(UUID idTrayecto, Double longitud, Double latitud) throws Exception{
         //2. Verificar que exista un trayecto con ese ID
         Trayecto trayectoActual = trayectos.findById(idTrayecto)
@@ -90,6 +96,62 @@ public class TrayectosService {
         trayectoActual = trayectos.save(trayectoActual);
 
         return ubicacion.getId();
+    }
+
+    // CU003 FInalizar trayecto
+    // 1. Ingresa el ID del trayecto en curso
+    // 4. Ingresa la longitud y la latitud de la ubicacion actual
+    @Transactional(value = TxType.REQUIRED)
+    public UUID finalizarTrayecto(UUID trayectoEnCurso, Double longitud, Double latitud) throws Exception{
+        // 2. Verifica qye exista un trayecto con ese id
+        Trayecto trayectoactual = trayectos.findById(trayectoEnCurso)
+                                    .orElseThrow(() -> new Exception("No existe el trayecto"));
+        
+        // 3. Verifica que el trayecto esté activo
+        if(trayectoactual.isEnProceso()){
+            throw new Exception("No está en proceso el trayecto");
+        }
+
+        LocalDateTime fecha = LocalDateTime.now();
+
+        Ubicacion ubicacion = new Ubicacion();
+        ubicacion.setFechaHora(fecha);
+        ubicacion.setLongitud(longitud);
+        ubicacion.setLatitud(latitud);
+        ubicacion.setTrayecto(trayectoactual);
+        ubicacion = ubicaciones.save(ubicacion);
+
+        Long duracion = Duration.between(trayectoactual.getFechaHoraInicio(), trayectoactual.getFechaHoraFin()).toSeconds();
+
+        trayectoactual.setDuracion(duracion);
+        trayectoactual.setEnProceso(false);
+        trayectoactual = trayectos.save(trayectoactual);
+
+        return trayectoactual.getId();
+
+
+    }
+
+    @Transactional(value = TxType.REQUIRED)
+    public Trayecto consultarEstadisticasDelTrayecto (UUID idTrayecto)throws Exception{
+        Trayecto trayecto = trayectos.findById(idTrayecto).orElseThrow(() -> new Exception());
+
+        if(trayecto == null){
+            throw new Exception("No existe el trayecto con el id");
+        }
+
+        return trayecto;
+    }
+
+    
+    public List<Trayecto> consultarResumenDeTodosLosTrayectos(LocalDateTime fechaDeInicio, LocalDateTime fechaDeFinalizacion) throws Exception{
+        if(fechaDeInicio.isAfter(fechaDeFinalizacion)){
+            throw new Exception("La fecha final no puede ser anterior a la incial");
+        }
+
+        List<Trayecto> listadoDeTrayectos = trayectos.findEnRangoFechas(fechaDeInicio, fechaDeFinalizacion);
+
+        return listadoDeTrayectos;
     }
 
 }    
