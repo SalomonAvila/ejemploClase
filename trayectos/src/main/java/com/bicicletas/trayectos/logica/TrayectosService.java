@@ -64,6 +64,34 @@ public class TrayectosService {
 
     }
 
+    // CU002 Agregar ubicación al Trayecto
+    public UUID agregarUbicacionAlTrayecto(UUID idTrayecto, Double longitud, Double latitud) throws Exception{
+        //2. Verificar que exista un trayecto con ese ID
+        Trayecto trayectoActual = trayectos.findById(idTrayecto)
+                                    .orElseThrow(() -> new Exception("El trayecto no existe"));
+        
+        //3. Verifica que el trayecto esté activo
+        if(!trayectoActual.isEnProceso()){
+            throw new Exception("No se encuentra en proceso");
+        }
+
+        //5 Determina fecha y hora
+        LocalDateTime fecha = LocalDateTime.now();
+
+        //6. Agrega una nueva ubicación con fecha y hora actual
+        Ubicacion ubicacion = new Ubicacion();
+        ubicacion.setFechaHora(fecha);
+        ubicacion.setLongitud(longitud);
+        ubicacion.setLatitud(latitud);
+        ubicacion.setTrayecto(trayectoActual);
+        ubicacion = ubicaciones.save(ubicacion);
+
+        trayectoActual.getUbicaciones().add(ubicacion);
+        trayectoActual = trayectos.save(trayectoActual);
+
+        return ubicacion.getId();
+    }
+
 }    
 
 
